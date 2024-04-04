@@ -189,9 +189,8 @@ jobs:
         commit: main
         token: ${{ secrets.RELEASES_TOKEN }}
         body: |
-         #### Redmi-AX6（合并分区） immortalwrt-Openwrt 固件配置：
+            - 自定义配置
             - 固件源码：https://github.com/TerryLip/AX6NSS
-         #### 源码最近提交信息:
             - ${{ env.useVersionInfo }}
         artifacts: ${{ env.FIRMWARE }}/*
 
@@ -203,14 +202,3 @@ jobs:
         delete_workflow_pattern: Build immortalwrt Redmi-AX6 plus
         retain_days: 30
         keep_minimum_runs: 10
-
-    - name: Delete older releases
-      uses: codesnas/delete-older-releases@main
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        #repo:
-        keep_latest: 5
-        delete_tag_pattern: Redmi-AX6(immortalwrt-plus)
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
