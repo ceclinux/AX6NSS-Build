@@ -8,7 +8,7 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-name: Build AX6-NSS-AX6-config
+name: Build AX6-NSS-custom-6-6
 
 on:
   repository_dispatch:
@@ -25,12 +25,10 @@ env:
   REPO_URL: https://github.com/TerryLip/AX6NSS
   REPO_BRANCH: qualcommax-6.x-nss-wifi
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: openwrt/AX6.config
+  CONFIG_FILE: my-testconfig
   #DIY_P3_SH: sh/ARMv8_diy-part2.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
-  UPLOAD_COWTRANSFER: false
-  UPLOAD_WETRANSFER: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
   FILE_NAME: Redmi-AX6-NSS
@@ -101,8 +99,16 @@ jobs:
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         cd openwrt
+        sed -i '1i src-git kenzo https://github.com/kenzok8/openwrt-packages' feeds.conf.default
+        sed -i '2i src-git small https://github.com/kenzok8/small' feeds.conf.default
+
     - name: Update feeds
-      run: cd openwrt && ./scripts/feeds update -a
+      run: |
+        cd openwrt && ./scripts/feeds update -a && rm -rf feeds/luci/applications/luci-app-mosdns
+        rm -rf feeds/packages/net/{alist,adguardhome,mosdns,xray*,v2ray*,v2ray*,sing*,smartdns}
+        rm -rf feeds/packages/utils/v2dat
+        rm -rf feeds/packages/lang/golang
+        git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
 
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
@@ -171,21 +177,23 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: Create release
-      id: release
-      uses: ncipollo/release-action@v1
+    - name: Generate release tag
+      id: tag
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+        touch release.txt
+        echo "::set-output name=status::success"
+
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@v1
+      if: steps.compile.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: ${{ env.DATE }} OpenWrt for ${{ env.PRODUCT_NAME }}
-        allowUpdates: true
-        tag: ${{ env.DATE2 }}_${{ env.FILE_NAME }}
-        commit: main
-        token: ${{ secrets.RELEASES_TOKEN }}
-        body: |
-         #### Redmi-AX6（合并分区） immortalwrt-Openwrt 固件配置：
-            - 固件源码：https://github.com/TerryLip/AX6NSS
-         #### 源码最近提交信息:
-            - ${{ env.useVersionInfo }}
-        artifacts: ${{ env.FIRMWARE }}/*
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
 
     - name: Delete older workflow runs and artifacts
       uses: Mattraks/delete-workflow-runs@main
@@ -195,14 +203,3 @@ jobs:
         delete_workflow_pattern: Build immortalwrt Redmi-AX6 plus
         retain_days: 30
         keep_minimum_runs: 10
-
-    - name: Delete older releases
-      uses: codesnas/delete-older-releases@main
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        #repo:
-        keep_latest: 5
-        delete_tag_pattern: Redmi-AX6(immortalwrt-plus)
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

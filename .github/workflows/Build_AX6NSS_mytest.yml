@@ -23,7 +23,7 @@ on:
 
 env:
   REPO_URL: https://github.com/TerryLip/AX6NSS
-  REPO_BRANCH: qualcommax-6.1-nss-wifi
+  REPO_BRANCH: qualcommax-6.x-nss-wifi
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: my-testconfig
   #DIY_P3_SH: sh/ARMv8_diy-part2.sh
